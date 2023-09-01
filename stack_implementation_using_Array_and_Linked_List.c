@@ -17,7 +17,7 @@ void main ()
     {  
         printf("\n\nChose one from the below options...\n");  
         printf("\n1.Push\n2.Pop\n3.Show\n4.Exit");  
-        printf("\n Enter your choice \n");        
+        printf("\n Enter your choice: \n");        
         scanf("%d",&choice);  
         switch(choice)  
         {  
@@ -58,7 +58,7 @@ void push ()
     }  
     else   
     {  
-        printf("Enter the value");  
+        printf("Enter the value:");  
         scanf("%d",&val);  
         if(head==NULL)  
         {         
@@ -107,7 +107,7 @@ void display()
     }  
     else  
     {  
-        printf("Printing Stack elements \n");  
+        printf("Elements: \n");  
         while(ptr!=NULL)  
         {  
             printf("%d\n",ptr->val);  

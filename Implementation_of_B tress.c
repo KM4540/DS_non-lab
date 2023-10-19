@@ -1,212 +1,165 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<stdbool.h>
-#include<limits.h>
+// Searching a key on a B-tree in C
 
-struct Node {
-    int data;
-    struct Node* left;
-    struct Node* right;
+#include <stdio.h>
+#include <stdlib.h>
+
+#define MAX 3
+#define MIN 2
+
+struct BTreeNode {
+  int val[MAX + 1], count;
+  struct BTreeNode *link[MAX + 1];
 };
 
-struct Node* newNode(int val) {
-    struct Node* temp = (struct Node*)malloc(sizeof(struct Node));
-    temp->data = val;
-    temp->right = NULL;
-    temp->left = NULL;
-    return temp;
+struct BTreeNode *root;
+
+// Create a node
+struct BTreeNode *createNode(int val, struct BTreeNode *child) {
+  struct BTreeNode *newNode;
+  newNode = (struct BTreeNode *)malloc(sizeof(struct BTreeNode));
+  newNode->val[1] = val;
+  newNode->count = 1;
+  newNode->link[0] = root;
+  newNode->link[1] = child;
+  return newNode;
 }
 
-struct Node* insert(struct Node* root, int val) {
-    if (root == NULL) {
-        root = newNode(val);
-    } else if (val < root->data) {
-        root->left = insert(root->left, val);
+// Insert node
+void insertNode(int val, int pos, struct BTreeNode *node,
+        struct BTreeNode *child) {
+  int j = node->count;
+  while (j > pos) {
+    node->val[j + 1] = node->val[j];
+    node->link[j + 1] = node->link[j];
+    j--;
+  }
+  node->val[j + 1] = val;
+  node->link[j + 1] = child;
+  node->count++;
+}
+
+// Split node
+void splitNode(int val, int *pval, int pos, struct BTreeNode *node,
+         struct BTreeNode *child, struct BTreeNode **newNode) {
+  int median, j;
+
+  if (pos > MIN)
+    median = MIN + 1;
+  else
+    median = MIN;
+
+  *newNode = (struct BTreeNode *)malloc(sizeof(struct BTreeNode));
+  j = median + 1;
+  while (j <= MAX) {
+    (*newNode)->val[j - median] = node->val[j];
+    (*newNode)->link[j - median] = node->link[j];
+    j++;
+  }
+  node->count = median;
+  (*newNode)->count = MAX - median;
+
+  if (pos <= MIN) {
+    insertNode(val, pos, node, child);
+  } else {
+    insertNode(val, pos - median, *newNode, child);
+  }
+  *pval = node->val[node->count];
+  (*newNode)->link[0] = node->link[node->count];
+  node->count--;
+}
+
+// Set the value
+int setValue(int val, int *pval,
+           struct BTreeNode *node, struct BTreeNode **child) {
+  int pos;
+  if (!node) {
+    *pval = val;
+    *child = NULL;
+    return 1;
+  }
+
+  if (val < node->val[1]) {
+    pos = 0;
+  } else {
+    for (pos = node->count;
+       (val < node->val[pos] && pos > 1); pos--)
+      ;
+    if (val == node->val[pos]) {
+      printf("Duplicates are not permitted\n");
+      return 0;
+    }
+  }
+  if (setValue(val, pval, node->link[pos], child)) {
+    if (node->count < MAX) {
+      insertNode(*pval, pos, node, *child);
     } else {
-        root->right = insert(root->right, val);
+      splitNode(*pval, pval, pos, node, *child, child);
+      return 1;
     }
-    return root;
+  }
+  return 0;
 }
 
-void display(struct Node* root) {
-    if (root != NULL) {
-        display(root->left);
-        printf("%d -> ", root->data);
-        display(root->right);
-    }
+// Insert the value
+void insert(int val) {
+  int flag, i;
+  struct BTreeNode *child;
+
+  flag = setValue(val, &i, root, &child);
+  if (flag)
+    root = createNode(i, child);
 }
 
-struct Node* findMaximum(struct Node* node) {
-    if (node == NULL)
-        return node;
-    if (node->right == NULL) {
-        return node;
-    } else {
-        return findMaximum(node->right);
+// Search node
+void search(int val, int *pos, struct BTreeNode *myNode) {
+  if (!myNode) {
+    return;
+  }
+
+  if (val < myNode->val[1]) {
+    *pos = 0;
+  } else {
+    for (*pos = myNode->count;
+       (val < myNode->val[*pos] && *pos > 1); (*pos)--)
+      ;
+    if (val == myNode->val[*pos]) {
+      printf("%d is found", val);
+      return;
     }
+  }
+  search(val, pos, myNode->link[*pos]);
+
+  return;
 }
 
-struct Node* findMinimum(struct Node* node) {
-    if (node == NULL)
-        return node;
-    if (node->left == NULL) {
-        return node;
-    } else {
-        return findMinimum(node->left);
+// Traverse then nodes
+void traversal(struct BTreeNode *myNode) {
+  int i;
+  if (myNode) {
+    for (i = 0; i < myNode->count; i++) {
+      traversal(myNode->link[i]);
+      printf("%d ", myNode->val[i + 1]);
     }
-}
-
-void preorder(struct Node* node) {
-    if (node != NULL) {
-        printf("%d ", node->data);
-        preorder(node->left);
-        preorder(node->right);
-    }
-}
-
-void postorder(struct Node* node) {
-    if (node != NULL) {
-        postorder(node->left);
-        postorder(node->right);
-        printf("%d ", node->data);
-    }
-}
-
-void inorder(struct Node* node) {
-    if (node != NULL) {
-        inorder(node->left);
-        printf("%d ", node->data);
-        inorder(node->right);
-    }
-}
-
-void levelorder(struct Node* node) {
-    if (node == NULL)
-        return;
-    struct Node* queue[100];
-    int front = 0, rear = 0;
-    queue[rear++] = node;
-    while (front < rear) {
-        struct Node* frontNode = queue[front];
-        printf("%d -> ", frontNode->data);
-        if (frontNode->left != NULL)
-            queue[rear++] = frontNode->left;
-        if (frontNode->right != NULL)
-            queue[rear++] = frontNode->right;
-        front++;
-    }
-}
-
-bool search(struct Node* root, int item) {
-    if (root == NULL)
-        return false;
-    if (item == root->data) {
-        return true;
-    } else if (item < root->data) {
-        return search(root->left, item);
-    } else if (item > root->data) {
-        return search(root->right, item);
-    } else {
-        return false;
-    }
-}
-
-int findHeight(struct Node* node) {
-    if (node == NULL) {
-        return -1;
-    } else {
-        int leftheight = findHeight(node->left);
-        int rightheight = findHeight(node->right);
-        return (leftheight > rightheight) ? (leftheight + 1) : (rightheight + 1);
-    }
+    traversal(myNode->link[i]);
+  }
 }
 
 int main() {
-    struct Node* root = NULL;
-    int choice, item;
+  int val, ch;
 
-    do {
-        printf("\n1. Insert\n");
-        printf("2. Display\n");
-        printf("3. Find Minimum and Maximum\n");
-        printf("4. Find Height\n");
-        printf("5. Preorder Traversal\n");
-        printf("6. Postorder Traversal\n");
-        printf("7. Inorder Traversal\n");
-        printf("8. Level Order Traversal\n");
-        printf("9. Search\n");
-        printf("0. Exit\n");
-        printf("Enter your choice: ");
-        scanf("%d", &choice);
+  insert(8);
+  insert(9);
+  insert(10);
+  insert(11);
+  insert(15);
+  insert(16);
+  insert(17);
+  insert(18);
+  insert(20);
+  insert(23);
 
-        switch (choice) {
-            case 1:
-                printf("Enter the data to insert: ");
-                scanf("%d", &item);
-                root = insert(root, item);
-                break;
+  traversal(root);
 
-            case 2:
-                printf("Tree formed:\n");
-                display(root);
-                break;
-
-            case 3:
-                {
-                    struct Node* min = findMinimum(root);
-                    struct Node* max = findMaximum(root);
-                    if (min == NULL) {
-                        printf("Tree is empty\n");
-                    } else {
-                        printf("Maximum element is: %d\n", max->data);
-                        printf("Minimum element is: %d\n", min->data);
-                    }
-                    break;
-                }
-
-            case 4:
-                printf("Height of the tree: %d\n", findHeight(root));
-                break;
-
-            case 5:
-                printf("Preorder traversal: ");
-                preorder(root);
-                break;
-
-            case 6:
-                printf("Postorder traversal: ");
-                postorder(root);
-                break;
-
-            case 7:
-                printf("Inorder traversal: ");
-                inorder(root);
-                break;
-
-            case 8:
-                printf("Level Order traversal: ");
-                levelorder(root);
-                break;
-
-            case 9:
-                printf("Enter the item to find: ");
-                scanf("%d", &item);
-                if (search(root, item)) {
-                    printf("Found..\n");
-                } else {
-                    printf("Not Found!\n");
-                }
-                break;
-
-            case 0:
-                printf("Exiting...\n");
-                break;
-
-            default:
-                printf("Invalid choice\n");
-        }
-
-    } while (choice != 0);
-
-    return 0;
+  printf("\n");
+  search(11, &ch, root);
 }
